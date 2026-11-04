@@ -1867,7 +1867,7 @@ enddo
 ! Get the rank and local cell index of the stack location by reducing
 ! best_cell_work over all ranks. The only positive value (if any) will
 ! be the local_index (n) one satisfying is_inside
-do s = 1, num_anthro_pt
+do s = 1, num_bb_pt
    call mpas_dmpar_maxloc_int(dminfo,best_cell_work_bb(s),bb_pt_local_cell_idx(s),bb_pt_rank(s))
 ! SAVE for DEBUG -- checks local index against the global cell number
 !   call mpas_dmpar_maxloc_int(dminfo,best_cell_global(s),ant_pt_global_cell_idx(s), ant_pt_rank(s))
