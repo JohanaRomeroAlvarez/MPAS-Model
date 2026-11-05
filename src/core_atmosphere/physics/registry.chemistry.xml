@@ -499,8 +499,7 @@
          <var_array name="e_bb_in"/>
          <var name="frp_in"/>
          <var name="fre_in"/>
-         <var name="BBLT"/>
-         <var name="BBLG"/>
+
       </stream>
 
       <stream name="smoke_forecast_input"
@@ -516,8 +515,6 @@
          <var name="hwp_prev24"/>
          <var name="fmc_prev24"/>
          <var name="totprcp_prev24"/>
-         <var name="BBLT"/>
-         <var name="BBLG"/>
       </stream>
 
       <stream name="smoke_emission_factor_input"
@@ -611,6 +608,16 @@
          in_defaults="false">
          <var_array name="e_ant_stack_groups_in"/>
       </stream>
+
+      <stream name="bb_pt_stack_group_input"
+         type="input"
+         filename_template="bb_pt.stack_groups.init.nc"
+         input_interval="intial_only"
+         immutable="true"
+         in_defaults="false">
+         <var_array name="e_bb_stack_groups_in"/>
+      </stream>
+
 
 </streams>
 
@@ -790,7 +797,7 @@
 <!-- INPUT EMISSIONS -->
    <var_struct name="emission_input" time_levs="1">
      <!-- BIOMASS BURNING -->
-      <var_array name="e_bb_in" type="real" dimensions="nkwildfire nbb_pt Time" packages="mpas_smoke_in">
+      <var_array name="e_bb_in" type="real" dimensions="nkwildfire nbb_pt" packages="mpas_smoke_in">
          <var name="e_bb_in_smoke_ultrafine" name_in_code="e_bb_in_smoke_ultrafine" array_group="bb_in_aerosols" units="ug m^{-2} s^{-1}"
               description="input biomass burning ultrafine smoke emissions"
               packages="mpas_smoke_ultrafine"/>
@@ -864,12 +871,12 @@
       <var name="bb_pt_rank" type="integer" dimensions="nbb_pt" units="index" 
            description="MPAS rank for the wildfire"
            packages="mpas_smoke_in" />
-      <var name="BBLT" type="real" dimensions="nbb_pt"  array_group="bb_in_aerosols" units="degrees"
-           description="Latitude of the point source"
-           packages="mpas_smoke_in"/>
-      <var name="BBLG" type="real" dimensions="nbb_pt" array_group="bb_in_aerosols" units="degrees"
-           description="Longitude of the point source"
-           packages="mpas_smoke_in"/>
+      <var_array name="e_bb_stack_groups_in" type="real" dimensions="nbb_pt" packages="mpas_smoke_in">
+         <var name="BBLT" name_in_code="BBLT" array_group="bb_in_aerosols" units="degrees"
+              description="Latitude of the point source"/>
+         <var name="BBLG" name_in_code="BBLG" array_group="bb_in_aerosols" units="degrees"
+              description="Longitude of the point source"/>
+      </var_array>
       <var name="ecoregion_ID" type="integer" dimensions="nCells" units="-"
            description="ecoregion ID"
            packages="mpas_smoke_online_emissions"/>

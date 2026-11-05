@@ -1572,12 +1572,14 @@ include 'mpif.h'
  type(mpas_pool_type),intent(inout):: emission_input
  type (dm_info), intent(in) :: dminfo !< Input: Domain information
  real(kind=RKIND),dimension(:,:),pointer  :: e_ant_stack_groups_in
+ real(kind=RKIND),dimension(:,:),pointer  :: e_bb_stack_groups_in
  real(kind=RKIND),dimension(:),pointer :: BBLT, BBLG
 
  character(len=StrKIND),pointer :: config_anthro_pt_scheme
  character(len=StrKIND),pointer :: config_smoke_scheme
 
  integer,pointer :: index_STKLT,index_STKLG,nCells
+ integer,pointer :: index_BBLT,index_BBLG
 
  real(kind=RKIND),dimension(:),pointer      :: latCell,lonCell
  integer, dimension(:), pointer :: ant_pt_local_cell_idx, ant_pt_rank
@@ -1651,8 +1653,9 @@ integer :: c_test, c_nearest, k, iter_knt
     call mpas_pool_get_array(emission_input, 'ant_pt_rank', ant_pt_rank)
  endif
  if ( config_smoke_scheme .ne. 'off' ) then
-    call mpas_pool_get_array(emission_input,'BBLT',BBLT)
-    call mpas_pool_get_array(emission_input,'BBLG',BBLG)
+    call mpas_pool_get_array(emission_input,'e_bb_stack_groups_in',e_bb_stack_groups_in)
+    call mpas_pool_get_dimension(emission_input,'index_BBLT',index_BBLT)
+    call mpas_pool_get_dimension(emission_input,'index_BBLG',index_BBLG)
     call mpas_pool_get_array(emission_input, 'bb_pt_local_cell_idx', bb_pt_local_cell_idx)
     call mpas_pool_get_array(emission_input, 'bb_pt_rank', bb_pt_rank)
  endif
@@ -1805,8 +1808,9 @@ endif ! if anthro_pt_scheme
 !
    best_cell_work_bb(s) = -1
 !
-   lat1 = BBLT(s)
-   lon1 = BBLG(s)
+   lat1 = e_bb_stack_groups_in(index_BBLT,s)
+   lon1 = e_bb_stack_groups_in(index_BBLG,s)
+   
 ! Convert
    if (lon1 < 0.0_RKIND) lon1 = lon1 + 360.0_RKIND   
 ! Check for valid coordinates
@@ -1862,6 +1866,7 @@ endif ! if anthro_pt_scheme
 ! Place a -1, only the one inside will be positive
    if ( is_inside) then
       best_cell_work_bb(s) = c_nearest
+      !write(*,*) 'lat1(s),lon1(s),lat2,lon2,c_nearest',lat1,lon1,lat2,lon2,c_nearest
    endif
 enddo
 ! Get the rank and local cell index of the stack location by reducing

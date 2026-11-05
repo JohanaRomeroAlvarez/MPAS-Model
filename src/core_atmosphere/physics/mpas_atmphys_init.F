@@ -575,17 +575,12 @@ use mpas_stream_manager
     if ( config_anthro_pt_scheme .ne. 'off' .or. config_smoke_scheme .ne. 'off') then
     ! Really only needed for the pt source locations, but leave for now
        if ( config_anthro_pt_scheme .ne. 'off' ) then
-       call MPAS_stream_mgr_read(stream_manager,streamID='anthro_pt_stack_group_input', whence=MPAS_STREAM_NEAREST, ierr=ierr)
-       call MPAS_stream_mgr_reset_alarms(stream_manager,streamID='anthro_pt_stack_group_input', direction=MPAS_STREAM_INPUT, ierr=ierr)
+          call MPAS_stream_mgr_read(stream_manager,streamID='anthro_pt_stack_group_input', whence=MPAS_STREAM_NEAREST, ierr=ierr)
+          call MPAS_stream_mgr_reset_alarms(stream_manager,streamID='anthro_pt_stack_group_input', direction=MPAS_STREAM_INPUT, ierr=ierr)
        endif
        if ( config_smoke_scheme .ne. 'off') then
-          if ( config_ebb_dcycle .eq. 1 .or. config_ebb_dcycle .eq. -1 ) then
-          call MPAS_stream_mgr_read(stream_manager,streamID='smoke_retro_input', whence=MPAS_STREAM_NEAREST, ierr=ierr)
-          call MPAS_stream_mgr_reset_alarms(stream_manager,streamID='smoke_retro_input', direction=MPAS_STREAM_INPUT, ierr=ierr)
-          else
-          call MPAS_stream_mgr_read(stream_manager,streamID='smoke_forecast_input', whence=MPAS_STREAM_NEAREST, ierr=ierr)
-          call MPAS_stream_mgr_reset_alarms(stream_manager,streamID='smoke_forecast_input', direction=MPAS_STREAM_INPUT, ierr=ierr)
-          endif
+          call MPAS_stream_mgr_read(stream_manager,streamID='bb_pt_stack_group_input', whence=MPAS_STREAM_NEAREST, ierr=ierr)
+          call MPAS_stream_mgr_reset_alarms(stream_manager,streamID='bb_pt_stack_group_input', direction=MPAS_STREAM_INPUT, ierr=ierr)
        endif
        call init_smoke(mesh,configs,emission_input,dminfo)
     endif
