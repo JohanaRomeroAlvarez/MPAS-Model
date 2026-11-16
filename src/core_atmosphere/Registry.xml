@@ -4053,7 +4053,10 @@
                      description="shortwave surface downward direct normal irradiance"/>
 
                 <var name="swddif" type="real" dimensions="nCells Time" units="W m^{-2}"
-                     description="shortwave surface downward diffuse irradiance"/>
+	             description="shortwave surface downward diffuse irradiance"/>
+
+                <var name="uvai_rrtmg" type="real" dimensions="nCells Time" units="-"
+                        description="UV Aerosol Index from RRTMG"/>
 
                 <var name="gsw" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="net surface shortwave radiation flux"/>
