@@ -60,6 +60,9 @@
  logical, pointer :: config_tempo_aerosolaware
 
  integer, pointer :: config_ebb_dcycle
+!JR st
+ integer, pointer :: EBB
+!JR ends  
  integer, pointer :: wetdep_ls_opt
  integer, pointer :: dust_opt
  ! Code has been added by Minsu Choi, CIRES/NOAA GSL
@@ -90,6 +93,13 @@
  call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
 
  call mpas_pool_get_config(configs,'config_ebb_dcycle', config_ebb_dcycle)
+!JR st -> release guard for config_ebb_dcycle -1 and EBB 2 & 3
+ call mpas_pool_get_config(configs,'config_ebb',EBB)
+ if (config_smoke_scheme .ne. 'off' .and. config_ebb_dcycle == -1 .and. (EBB == 2 .or. EBB == 3)) then 
+     write(*,*) 'EBB2/EBB3 forecast mode is not available in this release'
+     stop 1
+ endif
+!JR ends            
  call mpas_pool_get_config(configs,'plumerise_opt',plumerise_opt)
  call mpas_pool_get_config(configs,'add_fire_heat_flux',add_fire_heat_flux)
  call mpas_pool_get_config(configs,'add_fire_moist_flux',add_fire_moist_flux)
@@ -160,15 +170,21 @@
     if(.not.allocated(hwp_p)       )         allocate(hwp_p(ims:ime,jms:jme))
     if(.not.allocated(coef_bb_dc_p))         allocate(coef_bb_dc_p(ims:ime,jms:jme))
     if(.not.allocated(aod3d_smoke_p))        allocate(aod3d_smoke_p(ims:ime,kms:kme,jms:jme))
-    if ( config_calc_bb_emis_online ) then
+!JR st         
+!    if ( config_calc_bb_emis_online ) then
+     if (EBB == 2 .or. EBB == 3 .or. (EBB == 1 .and. config_calc_bb_emis_online)) then
+!JR ends         
        if(.not.allocated(ecoregion_ID_p)  )  allocate(ecoregion_ID_p(ims:ime,jms:jme))  !eco map 2d
        if(.not.allocated(efs_smold_p)     )  allocate(efs_smold_p(ims:ime,jms:jme)) !EFs for smoldering
        if(.not.allocated(efs_flam_p)      )  allocate(efs_flam_p(ims:ime,jms:jme)) !EFs for flaming
        if(.not.allocated(efs_rsmold_p)    )  allocate(efs_rsmold_p(ims:ime,jms:jme)) !EFs for residual smoldering
        if(.not.allocated(fire_ef_out_p)   )  allocate(fire_ef_out_p(ims:ime,jms:jme))
     endif
-    if (config_ebb_dcycle .eq. 2 ) then
+!JR st       
+!    if (config_ebb_dcycle .eq. 2 ) then
+     if (config_ebb_dcycle == -1 .and. (EBB == 2 .or. EBB == 3)) then    
 ! TODO -- is fmc_avg for ebb or calc emis?
+!JR ends       
        if(.not.allocated(fmc_avg_p)       )  allocate(fmc_avg_p(ims:ime,jms:jme))  !should be always 2d
        if(.not.allocated(totprcp_prev24_p))  allocate(totprcp_prev24_p(ims:ime,jms:jme)) !should be always 2d
        if(.not.allocated(hwp_avg_p)       )  allocate(hwp_avg_p(ims:ime,jms:jme,nblocks))
@@ -178,6 +194,10 @@
     else
        if(.not.allocated(frp_in_p)    )          allocate(frp_in_p(1:num_bb_pt))
        if(.not.allocated(fre_in_p)            )  allocate(fre_in_p(1:num_bb_pt))
+!JR st -> ebb_dcycle=0 also falls here, so ensures the “no fire” case does not leave them without values 
+       frp_in_p = 0.0_RKIND
+       fre_in_p = 0.0_RKIND
+!JR ends       
     endif
     if(.not.allocated(hfx_bb_p)           )  allocate(hfx_bb_p(ims:ime,jms:jme))  
     if (add_fire_heat_flux) then 
@@ -510,6 +530,9 @@
       integer,pointer                            :: chemistry_start,chemistry_end
 
       integer,pointer                            :: config_ebb_dcycle
+      !JR st
+      integer, pointer                           :: EBB
+      !JR ends
       integer,pointer                            :: dust_opt
       character(len=StrKIND),pointer :: config_smoke_scheme
       character(len=StrKIND),pointer :: config_dust_scheme
@@ -577,10 +600,19 @@
       call mpas_pool_get_config(configs,'add_fire_heat_flux',add_fire_heat_flux)
       call mpas_pool_get_config(configs,'add_fire_moist_flux',add_fire_moist_flux)
       call mpas_pool_get_config(configs,'config_ebb_dcycle', config_ebb_dcycle)
+      !JR st
+      call mpas_pool_get_config(configs,'config_ebb',EBB)
+      call mpas_pool_get_config(configs,'bb_input_prevh',bb_input_prevh)
+      !JR ends
       call mpas_pool_get_config(configs,'dust_opt', dust_opt)
       call mpas_pool_get_config(configs,'config_calc_bb_emis_online',config_calc_bb_emis_online)
-      if (config_ebb_dcycle .eq. 2) then
+      !JR st
+      !if (config_ebb_dcycle .eq. 2) then
+      if (config_ebb_dcycle == -1 .and. (EBB == 2 .or. EBB == 3)) then
+      !JR ends        
         nblocks = 24 / bb_input_prevh
+      else 
+        nblocks = 1      
       endif
      
       call mpas_pool_get_config(configs,'config_len_disp',len_disp)
@@ -704,21 +736,30 @@
          call mpas_pool_get_array(diag_physics,'fre_out',fre_out)
          call mpas_pool_get_array(diag_physics,'hwp',hwp)
          call mpas_pool_get_array(diag_physics,'coef_bb_dc',coef_bb_dc)
-         if ( config_calc_bb_emis_online ) then
+!JR st         
+         !if ( config_calc_bb_emis_online ) then
+         if (EBB == 2 .or. EBB == 3 .or. (EBB == 1 .and. config_calc_bb_emis_online)) then
+!JR ends
             call mpas_pool_get_array(emission_input,'ecoregion_ID',ecoregion_ID)
             call mpas_pool_get_array(emission_input,'efs_smold',efs_smold)
             call mpas_pool_get_array(emission_input,'efs_flam',efs_flam)
             call mpas_pool_get_array(emission_input,'efs_rsmold',efs_rsmold)
             call mpas_pool_get_array(diag_physics,'fire_ef_out',fire_ef_out)
          endif
-         if ( config_ebb_dcycle .eq. 2 ) then
+!JR st         
+!         if ( config_ebb_dcycle .eq. 2 ) then
+          if (config_ebb_dcycle == -1 .and. (EBB == 2 .or. EBB == 3)) then 
+!JR ends                  
             call mpas_pool_get_array(emission_input,'fmc_prev24',fmc_prev24)
             call mpas_pool_get_array(emission_input,'totprcp_prev24',totprcp_prev24)
             call mpas_pool_get_array(emission_input,'hwp_prev24',hwp_prev24)
             call mpas_pool_get_array(emission_input,'frp_prev24',frp_prev24)
             call mpas_pool_get_array(emission_input,'fre_prev24',fre_prev24)
             call mpas_pool_get_array(diag_physics,'fire_end_hr',fire_end_hr)
-         else
+         !JR st   
+         !else
+         elseif (EBB == 2 .or. EBB == 3 .or. (EBB == 1 .and. config_calc_bb_emis_online)) then
+         !JR ends
             call mpas_pool_get_array(emission_input,'frp_in',frp_in)
             call mpas_pool_get_array(emission_input,'fre_in',fre_in)
          endif
@@ -759,7 +800,14 @@
       endif
      
       chem => scalars(chemistry_start:chemistry_end,:,:)
-     
+      !JR st
+      write(*,*) 'JR CHEM DEBUG:', &
+           ' num_chem=', num_chem, &
+           ' chemistry_start=', chemistry_start, &
+           ' chemistry_end=', chemistry_end, &
+           ' size(chem,1)=', size(chem,1)
+     !JR end
+
       do n = 1, num_chem
       do j = jts, jte
       do k = kts, kte
@@ -810,6 +858,18 @@
       do k = 1, kwildfire
       do i = 1, num_bb_pt
          e_bb_in_p(i,k,n) = max(e_bb_in(n,k,i),0._RKIND)
+         !JR st
+         if (k == 1 .and. i <= 5 .and. (n == 1 .or. n == 2)) then
+                 write(*,*) 'JR DRIVER BB:', &
+              ' i=',i, &
+              ' k=',k, &
+              ' n=',n, &
+              ' raw=',e_bb_in(n,k,i), &
+              ' packed=',e_bb_in_p(i,k,n)
+         endif
+
+     !JR ends
+
       enddo
       enddo
       enddo
@@ -825,6 +885,7 @@
        enddo
        enddo
        enddo
+       
       endif   
  
       if ( num_e_ant_pt_in .gt. 0 .and. config_anthro_pt_scheme .ne. 'off') then
@@ -885,7 +946,13 @@
      ! BB
      !
       if ( config_smoke_scheme .ne. 'off' ) then
-      if ( config_ebb_dcycle .eq. 1 .or. config_ebb_dcycle .eq. -1 ) then
+      !JR st        
+      !if ( config_ebb_dcycle .eq. 1 .or. config_ebb_dcycle .eq. -1 ) then
+      if ((EBB == 2 .or. EBB == 3 .or. (EBB == 1 .and. config_calc_bb_emis_online)) .and. &
+          .not. (config_ebb_dcycle == -1 .and. (EBB == 2 .or. EBB == 3))) then
+      !JR ends
+
+         !JR TODO: update later     
          do i = 1, num_bb_pt 
             frp_in_p(i)  = frp_in(i)
             fre_in_p(i)  = fre_in(i)
@@ -897,7 +964,10 @@
           fre_out_p(i,j) = fre_out(i)
           hwp_p(i,j)     = hwp(i)
           coef_bb_dc_p(i,j) = coef_bb_dc(i)
-          if (config_calc_bb_emis_online) then
+          !JR st
+          !if (config_calc_bb_emis_online) then
+          if (EBB == 2 .or. EBB == 3 .or. (EBB == 1 .and. config_calc_bb_emis_online)) then
+          !JR ends        
              ecoregion_ID_p     (i,j)  = ecoregion_ID(i)
              efs_smold_p  (i,j)  = efs_smold(i)
              efs_flam_p   (i,j)  = efs_flam(i)
@@ -943,7 +1013,10 @@
       endif
       
 
-      if ( config_smoke_scheme .ne. 'off' .and. config_ebb_dcycle .eq. 2 ) then
+      !JR st
+      !if ( config_smoke_scheme .ne. 'off' .and. config_ebb_dcycle .eq. 2 ) then
+      if ( config_smoke_scheme .ne. 'off' .and. config_ebb_dcycle == -1 .and. (EBB == 2 .or. EBB == 3)) then
+      !JR ends
       ! First the FRP/FRE block, since we loop over num_bb_pt
       do blk = 1, nblocks
         t_start = (blk - 1) * t_size + 1
@@ -1361,6 +1434,13 @@
  endif
 
  chem => scalars(chemistry_start:chemistry_end,:,:)
+!JR st
+write(*,*) 'JR CHEM DEBUG:', &
+        ' num_chem=', num_chem, &
+        ' chemistry_start=', chemistry_start, &
+        ' chemistry_end=', chemistry_end, &
+        ' size(chem,1)=', size(chem,1)
+!JR end
 
       do j = jts,jte
       do k = kts,kte
@@ -1662,6 +1742,26 @@ integer :: c_test, c_nearest, k, iter_knt
     call mpas_pool_get_dimension(emission_input,'index_BBLG',index_BBLG)
     call mpas_pool_get_array(emission_input, 'bb_pt_local_cell_idx', bb_pt_local_cell_idx)
     call mpas_pool_get_array(emission_input, 'bb_pt_rank', bb_pt_rank)
+!JR st debug  
+   write(*,*) 'JR INIT ARRAYS:', &
+              ' myrank=',dminfo % my_proc_id, &
+              ' latCell1=',latCell(1), &
+              ' lonCell1=',lonCell(1), &
+              ' xCell1=',xCell(1), &
+              ' yCell1=',yCell(1), &
+              ' zCell1=',zCell(1), &
+              ' index_BBLT=',index_BBLT, &
+              ' index_BBLG=',index_BBLG
+
+   if (num_bb_pt > 0) then
+      write(*,*) 'JR BB STACK RAW:', &
+                 ' myrank=',dminfo % my_proc_id, &
+                 ' lat=',e_bb_stack_groups_in(index_BBLT,1), &
+                 ' lon=',e_bb_stack_groups_in(index_BBLG,1), &
+                 ' local_idx=',bb_pt_local_cell_idx(1), &
+                 ' rank=',bb_pt_rank(1)
+   endif   
+!JR ends      
  endif
 
  radius = 1.0_RKIND
@@ -1702,6 +1802,9 @@ if (brute_search ) then
       xPoint = R*(cos(lat1) * cos(lon1))
       yPoint = R*(cos(lat1) * sin(lon1))
       zPoint = R*(sin(lat1))
+!  JR added initialization
+      is_inside = .false.
+! JR ends      
       if ( R > 0 ) then
          is_inside =  mpas_in_cell(xPoint, yPoint, zPoint, xC, &
                       yC, zC, nEdgesOnCell(n), &
@@ -1782,6 +1885,9 @@ else
    yPoint = R*(cos(lat1) * sin(lon1))
    zPoint = R*(sin(lat1))
 ! Test
+!  JR added initialization
+   is_inside = .false.
+! JR ends   
    if ( R > 0 ) then
       is_inside =  mpas_in_cell(xPoint, yPoint, zPoint, xC, &
                    yC, zC, nEdgesOnCell(c_nearest), &
@@ -1862,11 +1968,29 @@ endif ! if anthro_pt_scheme
    yPoint = R*(cos(lat1) * sin(lon1))
    zPoint = R*(sin(lat1))
 ! Test
+!  JR added initialization
+   is_inside = .false.
+! JR ends   
    if ( R > 0 ) then
       is_inside =  mpas_in_cell(xPoint, yPoint, zPoint, xC, &
                    yC, zC, nEdgesOnCell(c_nearest), &
                    verticesOnCell(:,c_nearest), xVertex, yVertex, zVertex)
    endif
+!JR st debug 
+   if (s <= 5) then
+   write(*,*) 'JR LOCATE BB:', &
+              ' myrank=',myrank, &
+              ' s=',s, &
+              ' c_nearest=',c_nearest, &
+              ' R=',R, &
+              ' is_inside=',is_inside, &
+              ' lat_fire=',lat1, &
+              ' lon_fire=',lon1, &
+              ' lat_cell=',latCell(c_nearest), &
+              ' lon_cell=',lonCell(c_nearest)
+   endif 
+!JR ends
+
 ! Place a -1, only the one inside will be positive
    if ( is_inside) then
       best_cell_work_bb(s) = c_nearest
@@ -2037,6 +2161,9 @@ endif ! brute force
  integer,pointer                :: bb_input_prevh
  integer,pointer                :: bb_beta
  integer,pointer                :: config_ebb_dcycle
+!JR st
+ integer, pointer               :: EBB     
+!JR ends            
  integer,pointer                :: dust_opt
  integer,pointer                :: drydep_opt
  integer,pointer                :: pm_settling
@@ -2138,6 +2265,9 @@ endif ! brute force
  call mpas_pool_get_config(configs,'plume_alpha',plume_alpha)
  call mpas_pool_get_config(configs,'bb_emis_scale_factor',bb_emis_scale_factor)
  call mpas_pool_get_config(configs,'config_ebb_dcycle',config_ebb_dcycle)
+!JR st
+ call mpas_pool_get_config(configs,'config_ebb',EBB)
+!JR ends 
  call mpas_pool_get_config(configs,'bb_input_prevh',bb_input_prevh)
  call mpas_pool_get_config(configs,'add_fire_heat_flux',add_fire_heat_flux)
  call mpas_pool_get_config(configs,'add_fire_moist_flux',add_fire_moist_flux)
@@ -2365,8 +2495,13 @@ endif ! brute force
     (index_smoke_ultrafine .gt. 0 .or. index_smoke_ultrafine .gt. 0 .or. index_smoke_ultrafine .gt. 0 .or. &
      index_co .gt. 0 .or. index_nox .gt. 0 .or. index_ch4 .or. index_so2 .gt. 0 .or. index_nh3 .gt. 0 )) then
      do_mpas_smoke = .true.
-     if ( config_ebb_dcycle == 2 ) then
+     !JR st    
+     !if ( config_ebb_dcycle == 2 ) then
+     if (config_ebb_dcycle == -1 .and. (EBB == 2 .or. EBB == 3)) then
+     !JR ends    
         nblocks = 24 / bb_input_prevh
+     else
+        nblocks = 1   
      endif
  endif
  if (config_rwc_scheme .ne. 'off' .and. (index_smoke_fine .gt. 0 .or. &
@@ -2663,6 +2798,7 @@ endif
             nblocks = nblocks,                                                &
             eco_id = ecoregion_ID_p,                                          &
             calc_bb_emis_online = config_calc_bb_emis_online,                 &
+            EBB = EBB,                                                        & !JR added EBB
             efs_smold = efs_smold_p,                                          &
             efs_flam = efs_flam_p,                                            &
             efs_rsmold = efs_rsmold_p,                                        &

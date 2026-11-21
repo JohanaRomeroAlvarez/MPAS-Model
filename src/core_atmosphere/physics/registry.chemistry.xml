@@ -33,27 +33,43 @@
 <!-- **************************************************************************************** -->
 
    <packages>
+
+<!-- JR st changed: config_ebb 0 -> no fire; config_ebb 1 dcycle 1 -> legacy mpas_smoke_retro; config_ebb 1 dcycle -1 legacy persistence; config_ebb 2 dcycle 1 -> mpas_smoke_retro s/f efs;config_ebb 2 dcycle -1 mpas_smoke_forecast → but release guard stops it; config_ebb 3 dcycle -1 mpas_smoke_forecast → mpas_smoke_forecast → but release guard stops it --> 	   
          <package name="mpas_anthro_pt_emis"
                  active_when="config_anthro_scheme .ne. 'off' .and. config_anthro_pt_scheme .ne. 'off'"
                  description="package for point source anthropogenic emissions"/>
-         <package name="mpas_smoke_retro"
+<!--         <package name="mpas_smoke_retro"
                  active_when="config_ebb_dcycle .le. 1"
                  description="package for forcasting emissions"/>
          <package name="mpas_smoke_forecast"
                  active_when="config_ebb_dcycle .gt. 1"
-                 description="package for forcasting emissions"/>
-         <package name="mpas_smoke_online_emissions"
-                 active_when="config_calc_bb_emis_online"
-                 description="package for online bb emission calculation"/>
+		 description="package for forcasting emissions"/>
+-->
+         <package name="mpas_smoke_retro"
+                 active_when="config_ebb .ne. 0 .and. (config_ebb_dcycle .eq. 1 .or. (config_ebb_dcycle .eq. -1 .and. config_ebb .eq. 1))"
+		 description="package for direct and legacy biomass-burning emissions"/>
+         <package name="mpas_smoke_forecast"
+		 active_when="config_ebb_dcycle .eq. -1 .and. (config_ebb .eq. 2 .or. config_ebb .eq. 3)"
+		 description="package for forecast biomass-burning emissions"/>
+
+<!-- JR st config_ebb/3 activate the EF fields regardless of calc_bb_emis_online -->		 
+<!--         <package name="mpas_smoke_online_emissions"
+                      active_when="config_calc_bb_emis_online" -->
+        <package name="mpas_smoke_online_emissions"
+		active_when="config_ebb .eq. 2 .or. config_ebb .eq. 3 .or. (config_ebb .eq. 1 .and. config_calc_bb_emis_online)"
+	description="package for online bb emission calculation"/>
+<!-- JR ends -->	
 	 <package name="mpas_smoke_fine"          
 		 active_when="config_smoke_scheme .ne. 'off' .or. config_rwc_scheme .ne. 'off'"
 		 description="parameterization of fine smoke"/>
+	 <!-- JR st -> just type active when to active_when -->		 
 	 <package name="mpas_smoke_ultrafine"
-		 active when="config_ultrafine .and. (config_smoke_scheme .ne. 'off' .or. config_rwc_scheme .ne. 'off')"
+		 active_when="config_ultrafine .and. (config_smoke_scheme .ne. 'off' .or. config_rwc_scheme .ne. 'off')"
 		 description="parameterization of ultrafine smoke"/>
 	 <package name="mpas_smoke_coarse"
-		 active when="config_coarse .and. (config_smoke_scheme .ne. 'off' .or. config_rwc_scheme .ne. 'off')"
+		 active_when="config_coarse .and. (config_smoke_scheme .ne. 'off' .or. config_rwc_scheme .ne. 'off')"
 		 description="parameterization of coarse smoke"/>
+<!-- JR st -->		 
 	 <package name="mpas_smoke_in"
 		 active_when="config_smoke_scheme .ne. 'off'"
 		 description="parameterization of basic wildfire simulation"/>
@@ -305,9 +321,15 @@
            description="Scaling factor for water vapor wildfire emissions"
            possible_values="Positive integer values"/>
       <nml_option name="config_ebb_dcycle" type="integer" default_value="0"
-           units="-"
-           description="Algorithm choice wildfire emission forecast"
-           possible_values="Positive integer values"/>
+	   units="-"
+	   description="Algorithm choice wildfire emission: 0 no fire,1 direct/same-day, -1 forecast"
+	   possible_values="-1,0,1"/>   <!-- JR updated -->
+<!-- JR st: new config_ebb option added -->
+      <nml_option name="config_ebb" type="integer" default_value="0"
+	   units="-"
+           description="Wildfire emissions method: 0 off, 1 legacy, 2 online FRE research method, 3 reserved"
+	   possible_values="0,1,2,3"/>
+<!-- JR end -->	      
       <nml_option name="add_fire_heat_flux" type="logical" default_value="false" in_defaults="false"
            units="-"
            description="Logical flag to turn on/off fire heat flux to the atmosphere"
@@ -623,7 +645,7 @@
       <stream name="bb_pt_stack_group_input"
          type="input"
          filename_template="bb_pt.stack_groups.init.nc"
-         input_interval="intial_only"
+         input_interval="initial_only"
          immutable="true"
          in_defaults="false">
          <var_array name="e_bb_stack_groups_in"/>
@@ -903,14 +925,16 @@
            description="MPAS rank for the wildfire"
            packages="mpas_smoke_in" />
       <var_array name="e_bb_stack_groups_in" type="real" dimensions="nbb_pt" packages="mpas_smoke_in">
-         <var name="BBLT" name_in_code="BBLT" array_group="bb_in_stack" units="degrees"
+	 <var name="BBLT" name_in_code="BBLT" array_group="bb_in_stack" units="degrees"
               description="Latitude of the point source"/>
          <var name="BBLG" name_in_code="BBLG" array_group="bb_in_stack" units="degrees"
-              description="Longitude of the point source"/>
-         <var name="fire_type_in" type="integer" array_group="bb_in_stack" units="-"
+		 description="Longitude of the point source"/> 
+         <!-- JR st -> mixes an integer constituent into a real var-array, model crash-->		 
+	 <!-- <var name="fire_type_in" type="integer" array_group="bb_in_stack" units="-"
               description="type of fire"
-              packages="mpas_smoke_in"/>
-      </var_array>
+	 packages="mpas_smoke_in"/> -->
+         <!-- JR ends -->
+          </var_array>
       <var name="ecoregion_ID" type="integer" dimensions="nCells" units="-"
            description="ecoregion ID"
            packages="mpas_smoke_online_emissions"/>
